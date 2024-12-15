@@ -89,7 +89,8 @@ Use SSH to connect to your instance:
 ```bash
 ssh -i /path/to/your-key.pem ubuntu@<instance-public-ip>
 ```
-
+![instance_connect](images/instance_connect.png)
+![alt text](images/instance_terminal.png)
 ---
 
 ### **2. Set Up the Ubuntu Instance**
@@ -110,11 +111,12 @@ sudo apt update && sudo apt upgrade -y
    sudo systemctl start docker
    sudo systemctl enable docker
    ```
+   ![verify_docker](images/docker_enable.png)
 3. Verify Docker installation:
    ```bash
    docker --version
    ```
-
+    ![alt text](images/docker_verified.png)
 #### **Step 2.3: Install Docker Compose (Optional)**
 If needed, install Docker Compose:
 ```bash
@@ -135,54 +137,62 @@ npm -v
 ---
 
 ### **3. Prepare the Node.js Application**
+1. Create folder containing the application
+![node_folder](images/nodejs_folder.png)
+``cd`` into the application folder and create ```index.js```
+Paste the application code into the ```index.js```
+```script
+// index.js
+const http = require('http');
 
-#### **Step 3.1: Clone or Upload Your Application**
-Clone your Node.js application repository from GitHub or upload it to the instance:
-```bash
-git clone <your-repo-url> node-app
-cd node-app
+const server = http.createServer((req, res) => {
+    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.end('Hello sir, williams node container running!\n');
+});
+
+const PORT = 5000;
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
 ```
 
-#### **Step 3.2: Test the Application**
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
 2. Start the application locally:
    ```bash
-   node app.js
+   node index.js
    ```
+    ![runing_node](images/running_node_app.png)
 3. Verify it's working by accessing the instance’s public IP and port in a browser:
    ```
    http://<instance-public-ip>:5000
    ```
-
+    ![alt text](images/running_node_onbrowser.png)
 ---
 
 ### **4. Write the Dockerfile**
 
 Create a `Dockerfile` in the Node.js application root directory:
 ```Dockerfile
-# Use an official Node.js runtime as the base image
-FROM node:18
+# Use the official Node.js image as the base
+FROM node:22-alpine
 
-# Set the working directory inside the container
-WORKDIR /app
+# Set the working directory
+WORKDIR /usr/src/app
 
-# Copy package.json and package-lock.json
+# Copy package.json and package-lock.json / copying the json package into the root folder of the container
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Install dependence
+RUN npm ci --only=production
 
-# Copy the rest of the application
+
+# Copy application code /copying all the source code to the container root directory
 COPY . .
 
 # Expose the application port
 EXPOSE 5000
 
-# Define the command to run the application
-CMD ["node", "app.js"]
+# Start the application
+CMD ["node", "index.js"]
 ```
 
 ---
@@ -192,21 +202,21 @@ CMD ["node", "app.js"]
 #### **Step 5.1: Build the Docker Image**
 Run the following command in the application directory:
 ```bash
-docker build -t node-app:latest .
+sudo docker build -t node-app:latest .
 ```
-
+![building node-app images](<images/node-app docker-build.gif>)
 #### **Step 5.2: Run the Docker Container**
 Run the container and map port `5000` of the container to port `5000` on the host:
 ```bash
-docker run -d -p 5000:5000 node-app:latest
+sudo docker run -d -p 5000:5000 node-app:latest
 ```
-
+![alt text](images/docker_images.png)
 #### **Step 5.3: Verify the Application**
 Open your browser and access:
 ```
 http://<instance-public-ip>:5000
 ```
-
+![alt text](images/container_running.png)
 ---
 
 ### **6. Push the Docker Image to Docker Hub**
@@ -214,71 +224,200 @@ http://<instance-public-ip>:5000
 #### **Step 6.1: Log in to Docker Hub**
 Log in using your Docker Hub credentials:
 ```bash
-docker login
+sudo docker login
 ```
+Enter your Docker Hub username and password when prompted.
+
+![alt text](images/dockerhub_login.png)
 
 #### **Step 6.2: Tag the Docker Image**
 Tag the image with your Docker Hub username:
+Docker Hub requires images to be tagged with your ```username/repository-name```.
+
 ```bash
-docker tag node-app:latest your-dockerhub-username/node-app:latest
+sudo sudo docker tag node-app:latest your-dockerhub-username/node-app:latest
 ```
+![alt text](images/tag_images.png)
 
 #### **Step 6.3: Push the Image**
 Push the image to your Docker Hub repository:
 ```bash
-docker push your-dockerhub-username/node-app:latest
+sudo docker push your-dockerhub-username/node-app:v1.00
 ```
+![alt text](images/docker_push.png)
 
+Your image will now be available on Docker Hub.
+Verify the Image on Docker Hub:
+Log in to your Docker Hub account via the web interface to ensure the image is uploaded.
+
+![alt text](images/docker_hub.png)
 ---
 
 ### **7. Push the Docker Image to AWS ECR**
+To Push to Amazon ECR
+####  **1.    First, Set Up AWS CLI:**
+-   Install and configure the AWS CLI with your credentials:
+  Run the following command to download the zipped files of awscli
+    ```bash
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    ```
+    ![alt text](images/cli-step1.png)
+    ![alt text](images/cli-step2.png)
+    TO unzip the awscliv2.zip file; install unzip with the following command
+    ```bash
+    sudo apt install unzip -y
+    ```
+    Run the unzip command:
+    ```bash
+    unzip awscliv2.zip
+    ```
+    Run the following command to install the awscl
+    ```bash
+    sudo ./aws/install
+    ```
+    once you run the above command, you should get:
+    ![alt text](images/cli-step3.png)
+    ![alt text](images/cli-step4.png)
+![alt text](images/aws_access_key_generation-VEED.gif)
+    ```bash
+    aws configure
+    ```
+    ![alt text](images/aws_configure_detail.png)
+-   Provide your AWS access key, secret key, region, and output format from the downloaded access key.csv file
+####  **2.    Create an ECR Repository:**
+Follow the instructions for creating an ECR repository
+![alt text](images/ECR_CREATED.gif)
+
+```bash
+    aws configure
+ ```
+
 
 #### **Step 7.1: Authenticate Docker to AWS ECR**
 Get the ECR login command and authenticate:
+![alt text](images/push_command_AWS_ECR.png)
 ```bash
-aws ecr get-login-password --region <your-region> | docker login --username AWS --password-stdin <aws-account-id>.dkr.ecr.<your-region>.amazonaws.com
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 975050143185.dkr.ecr.us-east-1.amazonaws.com
 ```
-
+![alt text](images/ECR_AUTHENTICATION.png)
 #### **Step 7.2: Tag the Docker Image**
 Tag the Docker image for your ECR repository:
 ```bash
-docker tag node-app:latest <aws-account-id>.dkr.ecr.<your-region>.amazonaws.com/node-app:latest
+docker tag ibkwilliams1:latest 975050143185.dkr.ecr.us-east-1.amazonaws.com/ibkwilliams1:1.0.0
 ```
 
+![alt text](images/image_4_ECR.png)
 #### **Step 7.3: Push the Image to ECR**
 Push the image to your ECR repository:
 ```bash
-docker push <aws-account-id>.dkr.ecr.<your-region>.amazonaws.com/node-app:latest
+docker push 975050143185.dkr.ecr.us-east-1.amazonaws.com/ibkwilliams1:1.0.0
 ```
 
+The image is pushed to the ECR repository
+![alt text](images/image_pushed_complete.png)
+
+![alt text](images/image_pushed_shown.png)
 ---
 
 ### **8. Run the Container from ECR**
 
 1. Pull the image from ECR:
    ```bash
-   docker pull <aws-account-id>.dkr.ecr.<your-region>.amazonaws.com/node-app:latest
+   docker pull 975050143185.dkr.ecr.us-east-1.amazonaws.com/ibkwilliams1:1.0.0
    ```
 2. Run the container:
+   To run the container in detached mode and expose it at port 3000, you can use the following docker run command:
    ```bash
-   docker run -d -p 5000:5000 <aws-account-id>.dkr.ecr.<your-region>.amazonaws.com/node-app:latest
+   docker run -d -p 3000:3000 975050143185.dkr.ecr.us-east-1.amazonaws.com/ibkwilliams1:1.0.0
    ```
+### Explanation:
+- `-d`: Runs the container in detached mode (in the background).
+- `-p 3000:3000`: Maps port `3000` on your local machine to port `3000` inside the container.
+- The image `975050143185.dkr.ecr.us-east-1.amazonaws.com/ibkwilliams1:1.0.0` is used to create the container.
+Before running this, ensure the image is pulled locally with the `docker pull` command if it isn’t already.
+---
+### **9. How to apply a lifecycle Policy on ECR Repository**
+#####   Step 1: Ensure AWS CLI is Installed and Configured
+
+1. Install the AWS CLI if not already installed:
+ ```bash
+   curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+```
+(For Windows, use the appropriate installer)
+
+2. Configure AWS CLI with your credentials:
+   
+```bash
+   aws configure
+```
+Provide your Access Key, Secret Key, Default Region, and Output Format.
 
 ---
 
-### **9. Automate Deployment (Optional)**
-
-- Use **Docker Compose** for multi-container setups.
-- Use **AWS ECS** for orchestrating Docker containers.
-
+##### Step 2: Save the Lifecycle Policy File
+Save the provided lifecycle policy to a file called lifecycle.json:
+```bash
+nano lifecycle.json
+```
+Paste the JSON content into the file and save it.
+```json
+{
+  "rules": [
+    {
+      "rulePriority": 1,
+      "description": "Retain only the 3 most recent tagged images",
+      "selection": {
+        "tagStatus": "tagged",
+        "countType": "imageCountMoreThan",
+        "countNumber": 3
+      },
+      "action": {
+        "type": "expire"
+      }
+    },
+    {
+      "rulePriority": 2,
+      "description": "Delete all untagged images",
+      "selection": {
+        "tagStatus": "untagged",
+        "countType": "imageCountMoreThan",
+        "countNumber": 0
+      },
+      "action": {
+        "type": "expire"
+      }
+    }
+  ]
+}
+```
 ---
 
-This step-by-step guide covers everything from preparing the AWS Ubuntu instance to deploying the Node.js application in a Docker container. Let me know if you need help automating these steps or setting up CI/CD pipelines!
-#### Steps to Dockerize a Node.js Application
-- Example file structure of node.js application
-```go
-node-app/
-├── app.js
-├── package.json
-└── package-lock.json
+#####   Step 3: Apply the Lifecycle Policy to the ECR Repository
+Use the following AWS CLI command to apply the lifecycle policy to your repository:
+```bash
+aws ecr put-lifecycle-policy \
+  --repository-name ibkwilliams1 \
+  --lifecycle-policy-text file://lifecycle.json
+```
+---
+##### Step 4: Verify the Lifecycle Policy
+Confirm the lifecycle policy has been applied successfully:
+
+```bash
+aws ecr get-lifecycle-policy --repository-name ibkwilliams1
+```
+---
+##### Step 5: List Images in the Repository
+Check which images are currently stored in your repository:
+
+```bash
+aws ecr list-images --repository-name ibkwilliams1
+```
+---
+##### Step 6: Test Expiration
+The expiration process runs automatically in the background, but you can manually initiate it for testing purposes using:
+```bash
+aws ecr start-image-scan --repository-name ibkwilliams1 --image-id imageTag=1.0.0
 ```
